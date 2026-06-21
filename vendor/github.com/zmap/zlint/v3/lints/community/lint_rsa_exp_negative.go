@@ -1,7 +1,7 @@
 package community
 
 /*
- * ZLint Copyright 2023 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,8 +15,9 @@ package community
  */
 
 import (
-	"crypto/rsa"
+	"math/big"
 
+	"github.com/zmap/zcrypto/rsa"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -25,13 +26,15 @@ import (
 type rsaExpNegative struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_rsa_exp_negative",
-		Description:   "RSA public key exponent MUST be positive",
-		Citation:      "awslabs certlint",
-		Source:        lint.Community,
-		EffectiveDate: util.ZeroDate,
-		Lint:          NewRsaExpNegative,
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_rsa_exp_negative",
+			Description:   "RSA public key exponent MUST be positive",
+			Citation:      "awslabs certlint",
+			Source:        lint.Community,
+			EffectiveDate: util.ZeroDate,
+		},
+		Lint: NewRsaExpNegative,
 	})
 }
 
@@ -46,7 +49,7 @@ func (l *rsaExpNegative) CheckApplies(c *x509.Certificate) bool {
 
 func (l *rsaExpNegative) Execute(c *x509.Certificate) *lint.LintResult {
 	key := c.PublicKey.(*rsa.PublicKey)
-	if key.E < 0 {
+	if key.E.Cmp(big.NewInt(0)) < 0 {
 		return &lint.LintResult{Status: lint.Error}
 	}
 	return &lint.LintResult{Status: lint.Pass}

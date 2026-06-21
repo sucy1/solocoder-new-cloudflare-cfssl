@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2023 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -162,7 +162,7 @@ func ParseQcStatem(extVal []byte, sought asn1.ObjectIdentifier) EtsiQcStmtIf {
 			if len(statem.Any.FullBytes) != 0 {
 				return etsiBase{errorInfo: "internal error, default optional content len is not zero"}
 			}
-		} else if 0 != len(rest) {
+		} else if len(rest) != 0 {
 			return etsiBase{errorInfo: parseErrorString, isPresent: false}
 		}
 

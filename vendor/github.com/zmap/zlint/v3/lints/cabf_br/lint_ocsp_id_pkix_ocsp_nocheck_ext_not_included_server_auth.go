@@ -1,5 +1,5 @@
 /*
- * ZLint Copyright 2023 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -23,14 +23,17 @@ import (
 type OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth struct{}
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name: "e_ocsp_id_pkix_ocsp_nocheck_ext_not_included_server_auth",
-		Description: "OCSP signing Certificate MUST contain an extension of type id-pkixocsp-nocheck, as" +
-			" defined by RFC6960",
-		Citation:      "BRs: 4.9.9",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABEffectiveDate,
-		Lint:          NewOCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth,
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name: "e_ocsp_id_pkix_ocsp_nocheck_ext_not_included_server_auth",
+			Description: "OCSP signing Certificate MUST contain an extension of type id-pkixocsp-nocheck, as" +
+				" defined by RFC6960",
+			Citation:                "BRs: 4.9.9",
+			Source:                  lint.CABFBaselineRequirements,
+			EffectiveDate:           util.CABEffectiveDate,
+			OverrideFrameworkFilter: true,
+		},
+		Lint: NewOCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth,
 	})
 }
 
@@ -39,7 +42,7 @@ func NewOCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth() lint.LintInterface {
 }
 
 func (l *OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth) CheckApplies(c *x509.Certificate) bool {
-	return util.IsDelegatedOCSPResponderCert(c) && util.IsServerAuthCert(c)
+	return util.IsDelegatedOCSPResponderCert(c)
 }
 
 func (l *OCSPIDPKIXOCSPNocheckExtNotIncludedServerAuth) Execute(c *x509.Certificate) *lint.LintResult {

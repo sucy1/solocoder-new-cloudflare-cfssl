@@ -1,7 +1,7 @@
 package rfc
 
 /*
- * ZLint Copyright 2023 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -16,7 +16,6 @@ package rfc
 
 import (
 	"github.com/zmap/zcrypto/x509"
-	"github.com/zmap/zcrypto/x509/pkix"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
 )
@@ -28,13 +27,15 @@ The freshest CRL extension identifies how delta CRL information is obtained. The
 ************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "e_ext_freshest_crl_marked_critical",
-		Description:   "Freshest CRL MUST be marked as non-critical by conforming CAs",
-		Citation:      "RFC 5280: 4.2.1.15",
-		Source:        lint.RFC5280,
-		EffectiveDate: util.RFC3280Date,
-		Lint:          NewExtFreshestCrlMarkedCritical,
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "e_ext_freshest_crl_marked_critical",
+			Description:   "Freshest CRL MUST be marked as non-critical by conforming CAs",
+			Citation:      "RFC 5280: 4.2.1.15",
+			Source:        lint.RFC5280,
+			EffectiveDate: util.RFC3280Date,
+		},
+		Lint: NewExtFreshestCrlMarkedCritical,
 	})
 }
 
@@ -47,7 +48,7 @@ func (l *ExtFreshestCrlMarkedCritical) CheckApplies(cert *x509.Certificate) bool
 }
 
 func (l *ExtFreshestCrlMarkedCritical) Execute(cert *x509.Certificate) *lint.LintResult {
-	var fCRL *pkix.Extension = util.GetExtFromCert(cert, util.FreshCRLOID)
+	var fCRL = util.GetExtFromCert(cert, util.FreshCRLOID)
 	if fCRL != nil && fCRL.Critical {
 		return &lint.LintResult{Status: lint.Error}
 	} else if fCRL != nil && !fCRL.Critical {
