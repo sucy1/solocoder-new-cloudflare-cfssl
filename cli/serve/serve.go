@@ -39,6 +39,7 @@ import (
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/ocsp"
+	"github.com/cloudflare/cfssl/revoke"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/ubiquity"
 
@@ -293,6 +294,11 @@ func serverMain(args []string, c cli.Config) error {
 
 	bundler.IntermediateStash = conf.IntDir
 	var err error
+
+	if c.OCSPTimeout > 0 {
+		revoke.SetRequestTimeout(c.OCSPTimeout)
+		log.Infof("OCSP/CRL remote request timeout set to %v", c.OCSPTimeout)
+	}
 
 	if err = ubiquity.LoadPlatforms(conf.Metadata); err != nil {
 		return err

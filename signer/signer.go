@@ -94,12 +94,18 @@ func (s *Subject) Name() pkix.Name {
 	name.CommonName = s.CN
 
 	for _, n := range s.Names {
-		appendIf(n.C, &name.Country)
-		appendIf(n.ST, &name.Province)
-		appendIf(n.L, &name.Locality)
-		appendIf(n.O, &name.Organization)
-		for _, ou := range n.OU {
-			appendIf(ou, &name.OrganizationalUnit)
+		ouCount := len(n.OU)
+		if ouCount == 0 {
+			ouCount = 1
+		}
+		for i := 0; i < ouCount; i++ {
+			appendIf(n.C, &name.Country)
+			appendIf(n.ST, &name.Province)
+			appendIf(n.L, &name.Locality)
+			appendIf(n.O, &name.Organization)
+			if i < len(n.OU) {
+				appendIf(n.OU[i], &name.OrganizationalUnit)
+			}
 		}
 	}
 	name.SerialNumber = s.SerialNumber

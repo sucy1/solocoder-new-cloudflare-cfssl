@@ -36,38 +36,61 @@ type Name struct {
 	CommonName         string        `json:"common_name,omitempty"`
 	SerialNumber       string        `json:"serial_number,omitempty"`
 	Country            string        `json:"country,omitempty"`
+	Countries          []string      `json:"countries,omitempty"`
 	Organization       string        `json:"organization,omitempty"`
+	Organizations      []string      `json:"organizations,omitempty"`
 	OrganizationalUnit string        `json:"organizational_unit,omitempty"`
+	OrganizationalUnits []string     `json:"organizational_units,omitempty"`
 	Locality           string        `json:"locality,omitempty"`
+	Localities         []string      `json:"localities,omitempty"`
 	Province           string        `json:"province,omitempty"`
+	Provinces          []string      `json:"provinces,omitempty"`
 	StreetAddress      string        `json:"street_address,omitempty"`
+	StreetAddresses    []string      `json:"street_addresses,omitempty"`
 	PostalCode         string        `json:"postal_code,omitempty"`
+	PostalCodes        []string      `json:"postal_codes,omitempty"`
 	Names              []interface{} `json:"names,omitempty"`
-	// ExtraNames         []interface{} `json:"extra_names,omitempty"`
 }
 
 // ParseName parses a new name from a *pkix.Name
 func ParseName(name pkix.Name) Name {
 	n := Name{
-		CommonName:         name.CommonName,
-		SerialNumber:       name.SerialNumber,
-		Country:            strings.Join(name.Country, ","),
-		Organization:       strings.Join(name.Organization, ","),
-		OrganizationalUnit: strings.Join(name.OrganizationalUnit, ","),
-		Locality:           strings.Join(name.Locality, ","),
-		Province:           strings.Join(name.Province, ","),
-		StreetAddress:      strings.Join(name.StreetAddress, ","),
-		PostalCode:         strings.Join(name.PostalCode, ","),
+		CommonName:          name.CommonName,
+		SerialNumber:        name.SerialNumber,
+		Countries:           append([]string{}, name.Country...),
+		Organizations:       append([]string{}, name.Organization...),
+		OrganizationalUnits: append([]string{}, name.OrganizationalUnit...),
+		Localities:          append([]string{}, name.Locality...),
+		Provinces:           append([]string{}, name.Province...),
+		StreetAddresses:     append([]string{}, name.StreetAddress...),
+		PostalCodes:         append([]string{}, name.PostalCode...),
+	}
+
+	if len(name.Country) > 0 {
+		n.Country = strings.Join(name.Country, ",")
+	}
+	if len(name.Organization) > 0 {
+		n.Organization = strings.Join(name.Organization, ",")
+	}
+	if len(name.OrganizationalUnit) > 0 {
+		n.OrganizationalUnit = strings.Join(name.OrganizationalUnit, ",")
+	}
+	if len(name.Locality) > 0 {
+		n.Locality = strings.Join(name.Locality, ",")
+	}
+	if len(name.Province) > 0 {
+		n.Province = strings.Join(name.Province, ",")
+	}
+	if len(name.StreetAddress) > 0 {
+		n.StreetAddress = strings.Join(name.StreetAddress, ",")
+	}
+	if len(name.PostalCode) > 0 {
+		n.PostalCode = strings.Join(name.PostalCode, ",")
 	}
 
 	for i := range name.Names {
 		n.Names = append(n.Names, name.Names[i].Value)
 	}
-
-	// ExtraNames aren't supported in Go 1.4
-	// for i := range name.ExtraNames {
-	// 	n.ExtraNames = append(n.ExtraNames, name.ExtraNames[i].Value)
-	// }
 
 	return n
 }

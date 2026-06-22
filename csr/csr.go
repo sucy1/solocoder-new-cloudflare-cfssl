@@ -223,12 +223,18 @@ func (cr *CertificateRequest) Name() (pkix.Name, error) {
 	name.CommonName = cr.CN
 
 	for _, n := range cr.Names {
-		appendIf(n.C, &name.Country)
-		appendIf(n.ST, &name.Province)
-		appendIf(n.L, &name.Locality)
-		appendIf(n.O, &name.Organization)
-		for _, ou := range n.OU {
-			appendIf(ou, &name.OrganizationalUnit)
+		ouCount := len(n.OU)
+		if ouCount == 0 {
+			ouCount = 1
+		}
+		for i := 0; i < ouCount; i++ {
+			appendIf(n.C, &name.Country)
+			appendIf(n.ST, &name.Province)
+			appendIf(n.L, &name.Locality)
+			appendIf(n.O, &name.Organization)
+			if i < len(n.OU) {
+				appendIf(n.OU[i], &name.OrganizationalUnit)
+			}
 		}
 		for k, v := range n.OID {
 			oid, err := OIDFromString(k)
@@ -367,7 +373,10 @@ func getNames(sub pkix.Name) []Name {
 	nl := len(sub.Locality)
 	np := len(sub.Province)
 
-	n := max(nc, norg, nl, np)
+	n := max(nc, norg, nou, nl, np)
+	if n == 0 {
+		return nil
+	}
 
 	names := make([]Name, n)
 	for i := range names {
@@ -383,11 +392,8 @@ func getNames(sub pkix.Name) []Name {
 		if i < np {
 			names[i].ST = sub.Province[i]
 		}
-	}
-	if nou > 0 && n > 0 {
-		names[0].OU = make(MultiString, nou)
-		for i := 0; i < nou; i++ {
-			names[0].OU[i] = sub.OrganizationalUnit[i]
+		if i < nou {
+			names[i].OU = MultiString{sub.OrganizationalUnit[i]}
 		}
 	}
 	return names

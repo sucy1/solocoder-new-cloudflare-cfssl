@@ -6,6 +6,7 @@ package revoke
 import (
 	"bytes"
 	"crypto"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -24,8 +25,36 @@ import (
 	"github.com/cloudflare/cfssl/log"
 )
 
+// defaultTimeout is the default timeout for HTTP requests (CRL, OCSP, etc.)
+const defaultTimeout = 30 * time.Second
+
 // HTTPClient is an instance of http.Client that will be used for all HTTP requests.
-var HTTPClient = http.DefaultClient
+// It has a default 30-second timeout and supports HTTPS.
+var HTTPClient = &http.Client{
+	Timeout: defaultTimeout,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+		Proxy:                 http.ProxyFromEnvironment,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 20 * time.Second,
+		ExpectContinueTimeout: 5 * time.Second,
+	},
+}
+
+// RequestTimeout is the timeout used for HTTP requests. It can be configured
+// by the caller. If set to zero, the default 30-second timeout is used.
+var RequestTimeout = defaultTimeout
+
+// SetRequestTimeout sets the timeout for all HTTP requests (CRL, OCSP, remote certificate fetch).
+func SetRequestTimeout(timeout time.Duration) {
+	if timeout <= 0 {
+		timeout = defaultTimeout
+	}
+	RequestTimeout = timeout
+	HTTPClient.Timeout = timeout
+}
 
 // HardFail determines whether the failure to check the revocation
 // status of a certificate (i.e. due to network failure) causes

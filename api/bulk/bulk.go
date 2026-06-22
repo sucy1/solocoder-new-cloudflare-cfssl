@@ -4,6 +4,7 @@ package bulk
 import (
 	"encoding/json"
 	"io"
+	"math/big"
 	"net/http"
 
 	"github.com/cloudflare/cfssl/api"
@@ -18,6 +19,7 @@ type SignResult struct {
 	Success     bool                   `json:"success"`
 	Certificate string                 `json:"certificate,omitempty"`
 	Error       string                 `json:"error,omitempty"`
+	RequestID   string                 `json:"request_id,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -53,34 +55,44 @@ func NewHandlerFromSigner(s signer.Signer) (h *api.HTTPHandler, err error) {
 }
 
 type signRequest struct {
+	RequestID   string          `json:"request_id,omitempty"`
 	Hostname    string          `json:"hostname"`
 	Hosts       []string        `json:"hosts"`
 	Request     string          `json:"certificate_request"`
 	Subject     *signer.Subject `json:"subject,omitempty"`
 	Profile     string          `json:"profile"`
 	Label       string          `json:"label"`
+	Serial      *big.Int        `json:"serial,omitempty"`
 	Bundle      bool            `json:"bundle"`
 	ReturnChain bool            `json:"return_chain,omitempty"`
 }
 
 func (sr signRequest) toSignRequest() signer.SignRequest {
+	sub := new(signer.Subject)
+	if sr.Subject == nil {
+		sub = nil
+	} else {
+		*sub = *sr.Subject
+	}
 	if sr.Hostname != "" {
 		return signer.SignRequest{
 			Hosts:       signer.SplitHosts(sr.Hostname),
-			Subject:     sr.Subject,
+			Subject:     sub,
 			Request:     sr.Request,
 			Profile:     sr.Profile,
 			Label:       sr.Label,
+			Serial:      sr.Serial,
 			ReturnChain: sr.ReturnChain,
 		}
 	}
 
 	return signer.SignRequest{
 		Hosts:       sr.Hosts,
-		Subject:     sr.Subject,
+		Subject:     sub,
 		Request:     sr.Request,
 		Profile:     sr.Profile,
 		Label:       sr.Label,
+		Serial:      sr.Serial,
 		ReturnChain: sr.ReturnChain,
 	}
 }
@@ -106,14 +118,18 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	results := make([]SignResult, 0, len(requests))
+	succeededCerts := make([]string, 0)
+	succeededResults := make([]SignResult, 0)
+	failedResults := make([]SignResult, 0)
 	successCount := 0
 
 	for i, req := range requests {
-		result := SignResult{Index: i}
+		result := SignResult{Index: i, RequestID: req.RequestID}
 
 		if req.Request == "" {
 			result.Error = "missing parameter 'certificate_request'"
 			results = append(results, result)
+			failedResults = append(failedResults, result)
 			continue
 		}
 
@@ -121,12 +137,14 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			result.Error = err.Error()
 			results = append(results, result)
+			failedResults = append(failedResults, result)
 			continue
 		}
 
 		if profile.Provider != nil {
 			result.Error = "profile requires authentication"
 			results = append(results, result)
+			failedResults = append(failedResults, result)
 			continue
 		}
 
@@ -136,21 +154,33 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) error {
 			log.Warningf("bulk: failed to sign request %d: %v", i, err)
 			result.Error = err.Error()
 			results = append(results, result)
+			failedResults = append(failedResults, result)
 			continue
 		}
 
 		result.Success = true
 		result.Certificate = string(cert)
 		results = append(results, result)
+		succeededCerts = append(succeededCerts, string(cert))
+		succeededResults = append(succeededResults, result)
 		successCount++
 	}
 
 	log.Infof("bulk sign completed: %d/%d successful", successCount, len(requests))
 
-	return api.SendResponse(w, map[string]interface{}{
-		"results":   results,
-		"total":     len(requests),
-		"succeeded": successCount,
-		"failed":    len(requests) - successCount,
-	})
+	response := map[string]interface{}{
+		"results":           results,
+		"total":             len(requests),
+		"succeeded":         successCount,
+		"failed":            len(requests) - successCount,
+		"certificates":      succeededCerts,
+		"succeeded_results": succeededResults,
+		"failed_results":    failedResults,
+	}
+
+	if successCount == len(requests) {
+		return api.SendResponse(w, response)
+	}
+
+	return api.SendResponseWithMessage(w, response, "partial success", 0)
 }
