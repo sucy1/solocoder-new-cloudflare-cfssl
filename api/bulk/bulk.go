@@ -169,6 +169,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) error {
 	log.Infof("bulk sign completed: %d/%d successful", successCount, len(requests))
 
 	response := map[string]interface{}{
+		"version":           "v1",
 		"results":           results,
 		"total":             len(requests),
 		"succeeded":         successCount,

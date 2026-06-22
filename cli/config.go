@@ -71,6 +71,8 @@ type Config struct {
 	CRLExpiration     time.Duration
 	Disable           string
 	OCSPTimeout       time.Duration
+	OCSPCAFile        string
+	OCSPInsecureSkipVerify bool
 }
 
 // registerFlags defines all cfssl command flags and associates their values with variables.
@@ -134,6 +136,8 @@ func registerFlags(c *Config, f *flag.FlagSet) {
 	f.IntVar(&log.Level, "loglevel", log.LevelInfo, "Log level (0 = DEBUG, 5 = FATAL)")
 	f.StringVar(&c.Disable, "disable", "", "endpoints to disable")
 	f.DurationVar(&c.OCSPTimeout, "ocsp-timeout", 30*time.Second, "timeout for OCSP/CRL remote HTTP requests (default: 30s)")
+	f.StringVar(&c.OCSPCAFile, "ocsp-ca", "", "CA certificate bundle file for verifying OCSP responder and CRL server HTTPS certificates")
+	f.BoolVar(&c.OCSPInsecureSkipVerify, "ocsp-insecure-skip-verify", false, "WARNING: skip OCSP/CRL HTTPS certificate verification (insecure, for testing only)")
 }
 
 // RootFromConfig returns a universal signer Root structure that can

@@ -53,9 +53,10 @@ func (ms *MultiString) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
+// Always marshals as an array to preserve order and type consistency.
 func (ms MultiString) MarshalJSON() ([]byte, error) {
-	if len(ms) == 1 {
-		return json.Marshal(ms[0])
+	if len(ms) == 0 {
+		return json.Marshal([]string{})
 	}
 	return json.Marshal([]string(ms))
 }

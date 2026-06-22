@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -33,9 +34,6 @@ const defaultTimeout = 30 * time.Second
 var HTTPClient = &http.Client{
 	Timeout: defaultTimeout,
 	Transport: &http.Transport{
-		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
 		Proxy:                 http.ProxyFromEnvironment,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 20 * time.Second,
@@ -43,9 +41,88 @@ var HTTPClient = &http.Client{
 	},
 }
 
+func init() {
+	updateHTTPClientTLS()
+}
+
 // RequestTimeout is the timeout used for HTTP requests. It can be configured
 // by the caller. If set to zero, the default 30-second timeout is used.
 var RequestTimeout = defaultTimeout
+
+// InsecureSkipVerify controls whether TLS client verifies the server's
+// certificate chain and host name. Default is false (secure verification enabled).
+var InsecureSkipVerify = false
+
+// rootCAs is the CA certificate pool used for verifying OCSP responder and
+// CRL server certificates. If nil, the system default CA pool is used.
+var rootCAs *x509.CertPool
+
+var tlsConfigLock sync.RWMutex
+
+func getTLSConfig() *tls.Config {
+	tlsConfigLock.RLock()
+	defer tlsConfigLock.RUnlock()
+
+	cfg := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: InsecureSkipVerify,
+	}
+	if rootCAs != nil {
+		cfg.RootCAs = rootCAs
+	}
+	return cfg
+}
+
+func updateHTTPClientTLS() {
+	tlsConfigLock.Lock()
+	defer tlsConfigLock.Unlock()
+
+	if transport, ok := HTTPClient.Transport.(*http.Transport); ok {
+		transport.TLSClientConfig = getTLSConfig()
+	}
+}
+
+// SetRootCAs sets the CA certificate pool for verifying OCSP responder and CRL
+// server certificates. Pass nil to use the system default CA pool.
+func SetRootCAs(certPool *x509.CertPool) {
+	tlsConfigLock.Lock()
+	rootCAs = certPool
+	tlsConfigLock.Unlock()
+	updateHTTPClientTLS()
+}
+
+// SetInsecureSkipVerify controls whether TLS client skips certificate verification.
+// WARNING: Setting this to true disables all certificate verification, making
+// HTTPS connections vulnerable to man-in-the-middle attacks. Use only for testing.
+func SetInsecureSkipVerify(skip bool) {
+	tlsConfigLock.Lock()
+	InsecureSkipVerify = skip
+	tlsConfigLock.Unlock()
+	updateHTTPClientTLS()
+}
+
+// LoadRootCAsFromFile loads CA certificates from a PEM file and sets them as
+// the trusted root CAs for OCSP and CRL HTTPS connections.
+func LoadRootCAsFromFile(certFile string) error {
+	if certFile == "" {
+		SetRootCAs(nil)
+		return nil
+	}
+
+	certPEM, err := os.ReadFile(certFile)
+	if err != nil {
+		return fmt.Errorf("failed to read CA file: %w", err)
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		return fmt.Errorf("failed to parse CA certificates from %s", certFile)
+	}
+
+	SetRootCAs(pool)
+	log.Infof("Loaded %d CA certificates for OCSP/CRL HTTPS verification from %s", len(pool.Subjects()), certFile)
+	return nil
+}
 
 // SetRequestTimeout sets the timeout for all HTTP requests (CRL, OCSP, remote certificate fetch).
 func SetRequestTimeout(timeout time.Duration) {

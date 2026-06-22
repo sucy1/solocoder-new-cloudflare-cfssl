@@ -27,7 +27,7 @@ import (
 	"github.com/cloudflare/cfssl/api/info"
 	"github.com/cloudflare/cfssl/api/initca"
 	apiocsp "github.com/cloudflare/cfssl/api/ocsp"
-	"github.com/cloudflare/cfssl/api/revoke"
+	apirevoke "github.com/cloudflare/cfssl/api/revoke"
 	"github.com/cloudflare/cfssl/api/scan"
 	"github.com/cloudflare/cfssl/api/signhandler"
 	"github.com/cloudflare/cfssl/bundler"
@@ -238,7 +238,7 @@ var endpoints = map[string]func() (http.Handler, error){
 		if db == nil {
 			return nil, errNoCertDBConfigured
 		}
-		return revoke.NewHandler(certsql.NewAccessor(db)), nil
+		return apirevoke.NewHandler(certsql.NewAccessor(db)), nil
 	},
 
 	"/": func() (http.Handler, error) {
@@ -298,6 +298,17 @@ func serverMain(args []string, c cli.Config) error {
 	if c.OCSPTimeout > 0 {
 		revoke.SetRequestTimeout(c.OCSPTimeout)
 		log.Infof("OCSP/CRL remote request timeout set to %v", c.OCSPTimeout)
+	}
+
+	if c.OCSPInsecureSkipVerify {
+		log.Warning("OCSP/CRL HTTPS certificate verification is DISABLED (insecure)")
+		revoke.SetInsecureSkipVerify(true)
+	}
+
+	if c.OCSPCAFile != "" {
+		if err := revoke.LoadRootCAsFromFile(c.OCSPCAFile); err != nil {
+			log.Warningf("failed to load OCSP CA certificates: %v", err)
+		}
 	}
 
 	if err = ubiquity.LoadPlatforms(conf.Metadata); err != nil {
