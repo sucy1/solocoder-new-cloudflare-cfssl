@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
+	"github.com/cloudflare/cfssl/log"
 	"github.com/cloudflare/cfssl/revoke"
 	"github.com/cloudflare/cfssl/scan/crypto/tls"
 )
@@ -63,19 +64,29 @@ func chainExpiration(addr, hostname string) (grade Grade, output Output, err err
 	}
 
 	expirationTime := helpers.ExpiryTime(chain)
-	output = expirationTime
+	daysUntilExpiry := int(time.Until(expirationTime).Hours() / 24)
 
 	if time.Now().After(expirationTime) {
+		output = fmt.Sprintf("Certificate chain has expired (expired on %s)", expiration(expirationTime))
 		return
 	}
 
 	// Warn if cert will expire in the next 30 days
 	if time.Now().Add(time.Hour * 24 * 30).After(expirationTime) {
 		grade = Warning
+		if daysUntilExpiry < 0 {
+			daysUntilExpiry = 0
+		}
+		output = fmt.Sprintf("WARNING: Certificate chain will expire in %d days (on %s)",
+			daysUntilExpiry, expiration(expirationTime))
+		log.Warningf("Certificate chain for %s will expire in %d days (on %s)",
+			hostname, daysUntilExpiry, expiration(expirationTime))
 		return
 	}
 
 	grade = Good
+	output = fmt.Sprintf("Certificate chain valid until %s (%d days remaining)",
+		expiration(expirationTime), daysUntilExpiry)
 	return
 }
 

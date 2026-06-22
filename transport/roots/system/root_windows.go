@@ -18,7 +18,7 @@ import (
 // A pointer to the in-memory store is available in the returned CertContext's Store field.
 // The store is automatically freed when the CertContext is freed using
 // syscall.CertFreeCertificateContext.
-func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertContext, error) {
+func createStoreContext(leaf *x509.Certificate, opts *x509.VerifyOptions) (*syscall.CertContext, error) {
 	var storeCtx *syscall.CertContext
 
 	leafCtx, err := syscall.CertCreateCertificateContext(syscall.X509_ASN_ENCODING|syscall.PKCS_7_ASN_ENCODING, &leaf.Raw[0], uint32(len(leaf.Raw)))
@@ -57,7 +57,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
 }
 
 // extractSimpleChain extracts the final certificate chain from a CertSimpleChain.
-func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain []*Certificate, err error) {
+func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain []*x509.Certificate, err error) {
 	if simpleChain == nil || count == 0 {
 		return nil, errors.New("x509: invalid simple chain")
 	}
@@ -71,7 +71,7 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
 		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
 		buf := make([]byte, cert.Length)
 		copy(buf, encodedCert[:])
-		parsedCert, err := ParseCertificate(buf)
+		parsedCert, err := x509.ParseCertificate(buf)
 		if err != nil {
 			return nil, err
 		}
@@ -83,14 +83,14 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
 
 // checkChainTrustStatus checks the trust status of the certificate chain, translating
 // any errors it finds into Go errors in the process.
-func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) error {
+func checkChainTrustStatus(c *x509.Certificate, chainCtx *syscall.CertChainContext) error {
 	if chainCtx.TrustStatus.ErrorStatus != syscall.CERT_TRUST_NO_ERROR {
 		status := chainCtx.TrustStatus.ErrorStatus
 		switch status {
 		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
-			return CertificateInvalidError{c, Expired}
+			return x509.CertificateInvalidError{Cert: c, Reason: x509.Expired}
 		default:
-			return UnknownAuthorityError{c, nil, nil}
+			return x509.UnknownAuthorityError{Cert: c}
 		}
 	}
 	return nil
@@ -98,7 +98,7 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
 
 // checkChainSSLServerPolicy checks that the certificate chain in chainCtx is valid for
 // use as a certificate chain for a SSL/TLS server.
-func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContext, opts *VerifyOptions) error {
+func checkChainSSLServerPolicy(c *x509.Certificate, chainCtx *syscall.CertChainContext, opts *x509.VerifyOptions) error {
 	servernamep, err := syscall.UTF16PtrFromString(opts.DNSName)
 	if err != nil {
 		return err
@@ -126,13 +126,13 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
 	if status.Error != 0 {
 		switch status.Error {
 		case syscall.CERT_E_EXPIRED:
-			return CertificateInvalidError{c, Expired}
+			return x509.CertificateInvalidError{Cert: c, Reason: x509.Expired}
 		case syscall.CERT_E_CN_NO_MATCH:
-			return HostnameError{c, opts.DNSName}
+			return x509.HostnameError{Certificate: c, Host: opts.DNSName}
 		case syscall.CERT_E_UNTRUSTEDROOT:
-			return UnknownAuthorityError{c, nil, nil}
+			return x509.UnknownAuthorityError{Cert: c}
 		default:
-			return UnknownAuthorityError{c, nil, nil}
+			return x509.UnknownAuthorityError{Cert: c}
 		}
 	}
 

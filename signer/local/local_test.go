@@ -511,7 +511,7 @@ func TestPopulateSubjectFromCSR(t *testing.T) {
 				ST: "ST",
 				L:  "L",
 				O:  "O",
-				OU: "OU",
+				OU: csr.MultiString{"OU"},
 			},
 		},
 		SerialNumber: "deadbeef",
@@ -555,7 +555,7 @@ func TestPopulateSubjectFromCSR(t *testing.T) {
 	}
 
 	noOU := *fullSubject
-	noOU.Names[0].OU = ""
+	noOU.Names[0].OU = csr.MultiString{}
 	name = PopulateSubjectFromCSR(&noOU, fullName)
 	if !reflect.DeepEqual(name.OrganizationalUnit, fullName.OrganizationalUnit) {
 		t.Fatal("Failed to replace empty organizational unit")

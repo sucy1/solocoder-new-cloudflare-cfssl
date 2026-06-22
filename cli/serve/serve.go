@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/api/bundle"
+	"github.com/cloudflare/cfssl/api/bulk"
 	"github.com/cloudflare/cfssl/api/certadd"
 	"github.com/cloudflare/cfssl/api/certinfo"
 	"github.com/cloudflare/cfssl/api/crl"
@@ -128,6 +129,13 @@ var endpoints = map[string]func() (http.Handler, error){
 		}
 
 		return h, nil
+	},
+
+	"bulksign": func() (http.Handler, error) {
+		if s == nil {
+			return nil, errBadSigner
+		}
+		return bulk.NewHandlerFromSigner(s)
 	},
 
 	"authsign": func() (http.Handler, error) {
@@ -301,6 +309,23 @@ func serverMain(args []string, c cli.Config) error {
 
 	if s, err = sign.SignerFromConfigAndDB(c, db); err != nil {
 		log.Warningf("couldn't initialize signer: %v", err)
+	}
+
+	if s != nil && conf.IntBundleFile != "" {
+		if chainSigner, ok := s.(signer.ChainSigner); ok {
+			intBundle, err := os.ReadFile(conf.IntBundleFile)
+			if err != nil {
+				log.Warningf("failed to read intermediate bundle file: %v", err)
+			} else {
+				chainCerts, err := helpers.ParseCertificatesPEM(intBundle)
+				if err != nil {
+					log.Warningf("failed to parse intermediate bundle: %v", err)
+				} else {
+					chainSigner.SetParentChain(chainCerts)
+					log.Infof("loaded %d intermediate/root certificates for chain building", len(chainCerts))
+				}
+			}
+		}
 	}
 
 	if ocspSigner, err = ocspsign.SignerFromConfig(c); err != nil {

@@ -2,7 +2,6 @@
 package gencrl
 
 import (
-	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/json"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	cfsslcrl "github.com/cloudflare/cfssl/crl"
 	"github.com/cloudflare/cfssl/api"
 	"github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/helpers"
@@ -24,6 +24,7 @@ type jsonCRLRequest struct {
 	SerialNumber []string `json:"serialNumber"`
 	PrivateKey   string   `json:"issuingKey"`
 	ExpiryTime   string   `json:"expireTime"`
+	OCSP         string   `json:"ocsp_url,omitempty"`
 }
 
 // Handle responds to requests for crl generation. It creates this crl
@@ -85,7 +86,7 @@ func gencrlHandler(w http.ResponseWriter, r *http.Request) error {
 		return errors.NewBadRequestString("malformed Private Key")
 	}
 
-	result, err := cert.CreateCRL(rand.Reader, key, revokedCerts, time.Now(), newExpiryTime)
+	result, err := cfsslcrl.CreateGenericCRL(revokedCerts, key, cert, newExpiryTime, req.OCSP)
 	if err != nil {
 		log.Debugf("unable to create CRL: %v", err)
 		return err

@@ -11,6 +11,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -33,13 +34,39 @@ const (
 	curveP521 = 521
 )
 
+// MultiString is a type that can unmarshal from either a single string or a list of strings.
+type MultiString []string
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (ms *MultiString) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*ms = MultiString{single}
+		return nil
+	}
+	var multi []string
+	if err := json.Unmarshal(data, &multi); err != nil {
+		return err
+	}
+	*ms = MultiString(multi)
+	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (ms MultiString) MarshalJSON() ([]byte, error) {
+	if len(ms) == 1 {
+		return json.Marshal(ms[0])
+	}
+	return json.Marshal([]string(ms))
+}
+
 // A Name contains the SubjectInfo fields.
 type Name struct {
 	C            string            `json:"C,omitempty" yaml:"C,omitempty"`   // Country
 	ST           string            `json:"ST,omitempty" yaml:"ST,omitempty"` // State
 	L            string            `json:"L,omitempty" yaml:"L,omitempty"`   // Locality
 	O            string            `json:"O,omitempty" yaml:"O,omitempty"`   // OrganisationName
-	OU           string            `json:"OU,omitempty" yaml:"OU,omitempty"` // OrganisationalUnitName
+	OU           MultiString       `json:"OU,omitempty" yaml:"OU,omitempty"` // OrganisationalUnitName
 	E            string            `json:"E,omitempty" yaml:"E,omitempty"`
 	SerialNumber string            `json:"SerialNumber,omitempty" yaml:"SerialNumber,omitempty"`
 	OID          map[string]string `json:"OID,omitempty", yaml:"OID,omitempty"`
@@ -200,7 +227,9 @@ func (cr *CertificateRequest) Name() (pkix.Name, error) {
 		appendIf(n.ST, &name.Province)
 		appendIf(n.L, &name.Locality)
 		appendIf(n.O, &name.Organization)
-		appendIf(n.OU, &name.OrganizationalUnit)
+		for _, ou := range n.OU {
+			appendIf(ou, &name.OrganizationalUnit)
+		}
 		for k, v := range n.OID {
 			oid, err := OIDFromString(k)
 			if err != nil {
@@ -322,7 +351,6 @@ func getHosts(cert *x509.Certificate) []string {
 // getNames returns an array of Names from the certificate
 // It only cares about Country, Organization, OrganizationalUnit, Locality, Province
 func getNames(sub pkix.Name) []Name {
-	// anonymous func for finding the max of a list of integer
 	max := func(v1 int, vn ...int) (max int) {
 		max = v1
 		for i := 0; i < len(vn); i++ {
@@ -339,7 +367,7 @@ func getNames(sub pkix.Name) []Name {
 	nl := len(sub.Locality)
 	np := len(sub.Province)
 
-	n := max(nc, norg, nou, nl, np)
+	n := max(nc, norg, nl, np)
 
 	names := make([]Name, n)
 	for i := range names {
@@ -349,14 +377,17 @@ func getNames(sub pkix.Name) []Name {
 		if i < norg {
 			names[i].O = sub.Organization[i]
 		}
-		if i < nou {
-			names[i].OU = sub.OrganizationalUnit[i]
-		}
 		if i < nl {
 			names[i].L = sub.Locality[i]
 		}
 		if i < np {
 			names[i].ST = sub.Province[i]
+		}
+	}
+	if nou > 0 && n > 0 {
+		names[0].OU = make(MultiString, nou)
+		for i := 0; i < nou; i++ {
+			names[0].OU[i] = sub.OrganizationalUnit[i]
 		}
 	}
 	return names
@@ -389,7 +420,15 @@ func (g *Generator) ProcessRequest(req *CertificateRequest) (csr, key []byte, er
 func IsNameEmpty(n Name) bool {
 	empty := func(s string) bool { return strings.TrimSpace(s) == "" }
 
-	if empty(n.C) && empty(n.ST) && empty(n.L) && empty(n.O) && empty(n.OU) {
+	allOUEmpty := true
+	for _, ou := range n.OU {
+		if !empty(ou) {
+			allOUEmpty = false
+			break
+		}
+	}
+
+	if empty(n.C) && empty(n.ST) && empty(n.L) && empty(n.O) && allOUEmpty {
 		return true
 	}
 	return false

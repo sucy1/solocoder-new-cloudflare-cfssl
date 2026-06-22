@@ -73,6 +73,9 @@ type SignRequest struct {
 	// be passed to SignFromPrecert with the SCTs in order to create a
 	// valid certificate.
 	ReturnPrecert bool
+	// If ReturnChain is true, the full certificate chain (leaf + intermediates
+	// + root) will be returned when signing with a multi-level CA setup.
+	ReturnChain bool `json:"return_chain,omitempty"`
 
 	// Arbitrary metadata to be stored in certdb.
 	Metadata map[string]interface{} `json:"metadata"`
@@ -95,7 +98,9 @@ func (s *Subject) Name() pkix.Name {
 		appendIf(n.ST, &name.Province)
 		appendIf(n.L, &name.Locality)
 		appendIf(n.O, &name.Organization)
-		appendIf(n.OU, &name.OrganizationalUnit)
+		for _, ou := range n.OU {
+			appendIf(ou, &name.OrganizationalUnit)
+		}
 	}
 	name.SerialNumber = s.SerialNumber
 	return name
@@ -122,6 +127,13 @@ type Signer interface {
 	SigAlgo() x509.SignatureAlgorithm
 	Sign(req SignRequest) (cert []byte, err error)
 	SetReqModifier(func(*http.Request, []byte))
+}
+
+// ChainSigner is an optional interface for signers that support
+// multi-level CA certificate chains.
+type ChainSigner interface {
+	SetParentChain(chain []*x509.Certificate)
+	ParentChain() []*x509.Certificate
 }
 
 // Profile gets the specific profile from the signer

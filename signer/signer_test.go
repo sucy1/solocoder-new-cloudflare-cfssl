@@ -148,7 +148,7 @@ func TestName(t *testing.T) {
 				ST: "CA",
 				L:  "Cool Locality",
 				O:  "Cool Org",
-				OU: "Really Cool Sub Org",
+				OU: csr.MultiString{"Really Cool Sub Org"},
 			},
 			{
 				L: "Another Cool Locality",

@@ -52,6 +52,9 @@ type Signer struct {
 	policy     *config.Signing
 	sigAlgo    x509.SignatureAlgorithm
 	dbAccessor certdb.Accessor
+	// parentChain stores intermediate and root certificates for multi-level CA chains.
+	// The certificates should be ordered from the direct parent up to the root.
+	parentChain []*x509.Certificate
 }
 
 // NewSigner creates a new Signer directly from a
@@ -535,6 +538,10 @@ func (s *Signer) Sign(req signer.SignRequest) (cert []byte, err error) {
 		log.Debug("saved certificate with serial number ", certTBS.SerialNumber)
 	}
 
+	if req.ReturnChain && len(s.parentChain) > 0 {
+		signedCert = appendChainPEM(signedCert, s.parentChain)
+	}
+
 	return signedCert, nil
 }
 
@@ -677,4 +684,29 @@ func (s *Signer) SetReqModifier(func(*http.Request, []byte)) {
 // Policy returns the signer's policy.
 func (s *Signer) Policy() *config.Signing {
 	return s.policy
+}
+
+// SetParentChain sets the parent CA certificate chain (intermediates and root)
+// for multi-level CA issuance. The chain should be ordered from the direct
+// parent of the signer's CA up to the root.
+func (s *Signer) SetParentChain(chain []*x509.Certificate) {
+	s.parentChain = chain
+}
+
+// ParentChain returns the parent CA certificate chain.
+func (s *Signer) ParentChain() []*x509.Certificate {
+	return s.parentChain
+}
+
+// appendChainPEM appends parent chain certificates to the leaf certificate PEM.
+func appendChainPEM(leafPEM []byte, chain []*x509.Certificate) []byte {
+	if len(chain) == 0 {
+		return leafPEM
+	}
+	result := make([]byte, len(leafPEM))
+	copy(result, leafPEM)
+	for _, cert := range chain {
+		result = append(result, helpers.EncodeCertificatePEM(cert)...)
+	}
+	return result
 }

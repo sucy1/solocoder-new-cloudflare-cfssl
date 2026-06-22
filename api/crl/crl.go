@@ -22,10 +22,11 @@ type Handler struct {
 	dbAccessor certdb.Accessor
 	ca         *x509.Certificate
 	key        crypto.Signer
+	ocspURL    string
 }
 
 // NewHandler returns a new http.Handler that handles a revoke request.
-func NewHandler(dbAccessor certdb.Accessor, caPath string, caKeyPath string) (http.Handler, error) {
+func NewHandler(dbAccessor certdb.Accessor, caPath string, caKeyPath string, ocspURL ...string) (http.Handler, error) {
 	ca, err := helpers.ReadBytes(caPath)
 	if err != nil {
 		return nil, err
@@ -55,11 +56,17 @@ func NewHandler(dbAccessor certdb.Accessor, caPath string, caKeyPath string) (ht
 		return nil, err
 	}
 
+	var ocsp string
+	if len(ocspURL) > 0 {
+		ocsp = ocspURL[0]
+	}
+
 	return &api.HTTPHandler{
 		Handler: &Handler{
 			dbAccessor: dbAccessor,
 			ca:         issuerCert,
 			key:        key,
+			ocspURL:    ocsp,
 		},
 		Methods: []string{"GET"},
 	}, nil
@@ -84,7 +91,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	result, err := crl.NewCRLFromDB(certs, h.ca, h.key, newExpiryTime)
+	ocspURL := h.ocspURL
+	if queryOCSP := r.URL.Query().Get("ocsp"); queryOCSP != "" {
+		ocspURL = queryOCSP
+	}
+
+	result, err := crl.NewCRLFromDB(certs, h.ca, h.key, newExpiryTime, ocspURL)
 	if err != nil {
 		return err
 	}

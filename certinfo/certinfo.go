@@ -27,6 +27,8 @@ type Certificate struct {
 	AKI                string    `json:"authority_key_id"`
 	SKI                string    `json:"subject_key_id"`
 	RawPEM             string    `json:"pem"`
+	ExpiringSoon       bool      `json:"expiring_soon,omitempty"`
+	DaysUntilExpiry    int       `json:"days_until_expiry,omitempty"`
 }
 
 // Name represents a JSON description of a PKIX Name
@@ -85,6 +87,7 @@ func formatKeyID(id []byte) string {
 
 // ParseCertificate parses an x509 certificate.
 func ParseCertificate(cert *x509.Certificate) *Certificate {
+	daysUntilExpiry := int(time.Until(cert.NotAfter).Hours() / 24)
 	c := &Certificate{
 		RawPEM:             string(helpers.EncodeCertificatePEM(cert)),
 		SignatureAlgorithm: helpers.SignatureString(cert.SignatureAlgorithm),
@@ -96,9 +99,15 @@ func ParseCertificate(cert *x509.Certificate) *Certificate {
 		AKI:                formatKeyID(cert.AuthorityKeyId),
 		SKI:                formatKeyID(cert.SubjectKeyId),
 		SerialNumber:       cert.SerialNumber.String(),
+		ExpiringSoon:       daysUntilExpiry <= 30,
+		DaysUntilExpiry:    daysUntilExpiry,
 	}
 	for _, ip := range cert.IPAddresses {
 		c.SANs = append(c.SANs, ip.String())
+	}
+	if c.ExpiringSoon {
+		fmt.Fprintf(os.Stderr, "WARNING: Certificate %q will expire in %d days (on %s)\n",
+			cert.Subject.CommonName, daysUntilExpiry, cert.NotAfter.Format("2006-01-02"))
 	}
 	return c
 }
