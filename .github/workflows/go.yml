@@ -54,7 +54,7 @@ jobs:
       - run: psql -c 'create database certdb_development;' -U postgres;
       - run: mysql -e 'create database certdb_development;' -u root;
       - run: mysql -e 'SET global sql_mode = 0;' -u root;
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -74,7 +74,7 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version: "1.20"
