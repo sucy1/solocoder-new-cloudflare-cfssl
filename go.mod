@@ -1,6 +1,6 @@
 module github.com/cloudflare/cfssl
 
-go 1.20
+go 1.25.0
 
 require (
 	bitbucket.org/liamstask/goose v0.0.0-20150115234039-8488cc47d90c
@@ -14,9 +14,9 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/prometheus/client_golang v1.19.0
-	github.com/zmap/zcrypto v0.0.0-20230310154051-c8b263fd8300
-	github.com/zmap/zlint/v3 v3.5.0
-	golang.org/x/crypto v0.21.0
+	github.com/zmap/zcrypto v0.0.0-20260514033604-a1159eb3cad9
+	github.com/zmap/zlint/v3 v3.7.1
+	golang.org/x/crypto v0.51.0
 )
 
 require (
@@ -26,16 +26,15 @@ require (
 	github.com/getsentry/sentry-go v0.11.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/kylelemons/go-gypsy v1.0.0 // indirect
-	github.com/pelletier/go-toml v1.9.3 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
-	github.com/weppos/publicsuffix-go v0.30.0 // indirect
+	github.com/weppos/publicsuffix-go v0.50.4-0.20260507075217-1bd47f85b3da // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
-	golang.org/x/net v0.22.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 )

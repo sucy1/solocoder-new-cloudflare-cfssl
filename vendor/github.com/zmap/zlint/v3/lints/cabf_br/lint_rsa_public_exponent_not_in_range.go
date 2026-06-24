@@ -1,7 +1,7 @@
 package cabf_br
 
 /*
- * ZLint Copyright 2023 Regents of the University of Michigan
+ * ZLint Copyright 2024 Regents of the University of Michigan
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,9 +15,9 @@ package cabf_br
  */
 
 import (
-	"crypto/rsa"
 	"math/big"
 
+	"github.com/zmap/zcrypto/rsa"
 	"github.com/zmap/zcrypto/x509"
 	"github.com/zmap/zlint/v3/lint"
 	"github.com/zmap/zlint/v3/util"
@@ -33,13 +33,15 @@ RSA: The CA SHALL confirm that the value of the public exponent is an odd number
 *******************************************************************************************************/
 
 func init() {
-	lint.RegisterLint(&lint.Lint{
-		Name:          "w_rsa_public_exponent_not_in_range",
-		Description:   "RSA: Public exponent SHOULD be in the range between 2^16 + 1 and 2^256 - 1",
-		Citation:      "BRs: 6.1.6",
-		Source:        lint.CABFBaselineRequirements,
-		EffectiveDate: util.CABV113Date,
-		Lint:          NewRsaParsedTestsExpInRange,
+	lint.RegisterCertificateLint(&lint.CertificateLint{
+		LintMetadata: lint.LintMetadata{
+			Name:          "w_rsa_public_exponent_not_in_range",
+			Description:   "RSA: Public exponent SHOULD be in the range between 2^16 + 1 and 2^256 - 1",
+			Citation:      "BRs: 6.1.6",
+			Source:        lint.CABFBaselineRequirements,
+			EffectiveDate: util.CABV113Date,
+		},
+		Lint: NewRsaParsedTestsExpInRange,
 	})
 }
 
@@ -58,8 +60,8 @@ func (l *rsaParsedTestsExpInRange) CheckApplies(c *x509.Certificate) bool {
 func (l *rsaParsedTestsExpInRange) Execute(c *x509.Certificate) *lint.LintResult {
 	key := c.PublicKey.(*rsa.PublicKey)
 	exponent := key.E
-	const lowerBound = 65537 // 2^16 + 1
-	if exponent >= lowerBound && l.upperBound.Cmp(big.NewInt(int64(exponent))) == 1 {
+	lowerBound := big.NewInt(65537) // 2^16 + 1
+	if exponent.Cmp(lowerBound) >= 0 && l.upperBound.Cmp(exponent) == 1 {
 		return &lint.LintResult{Status: lint.Pass}
 	}
 	return &lint.LintResult{Status: lint.Warn}
