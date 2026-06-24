@@ -2,8 +2,8 @@
 ## explicit
 bitbucket.org/liamstask/goose/cmd/goose
 bitbucket.org/liamstask/goose/lib/goose
-# filippo.io/edwards25519 v1.1.0
-## explicit; go 1.20
+# filippo.io/edwards25519 v1.2.0
+## explicit; go 1.24.0
 filippo.io/edwards25519
 filippo.io/edwards25519/field
 # github.com/beorn7/perks v1.0.1
@@ -40,8 +40,8 @@ github.com/getsentry/sentry-go/internal/ratelimit
 # github.com/go-logr/logr v1.4.1
 ## explicit; go 1.18
 github.com/go-logr/logr
-# github.com/go-sql-driver/mysql v1.8.0
-## explicit; go 1.18
+# github.com/go-sql-driver/mysql v1.10.0
+## explicit; go 1.24.0
 github.com/go-sql-driver/mysql
 # github.com/google/certificate-transparency-go v1.1.8
 ## explicit; go 1.21
